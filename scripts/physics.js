@@ -6,23 +6,30 @@ var toDegrees = function(angle) {
 	return angle * 180.0 / Math.PI;
 }
 function Swing(L) {
-	this.theta = 60.0,
-	this.omega = 0.0,
-	this.alpha = 0.0,
-	this.PE    = 0.0,
-	this.KE    = 0.0,
-	this.TE    = 0.0,
+	this.L     = L,
 	this.mass  = 1.0,
-	this.L     = L
+	this.theta = toRadians(6.0*(Math.random()-0.5)),
+	this.omega = (Math.random()-0.5)/10.0,
+	this.alpha = this.calcAlpha(),
+	this.PE    = this.calcPE(),
+	this.KE    = this.calcKE(),
+	this.TE    = this.PE + this.KE,
+	this.maxTheta   = toRadians(80.0),
+	this.maxHeight  = this.L * (1 - Math.cos(this.maxTheta)),
+	this.maxEnergy  = this.maxHeight * g * this.mass,
+	this.energyIncrementPerSwing = this.maxEnergy / 100.0,
+	this.swingHalfLife = 5.0, //seconds
+	this.energyLossFactor =Math.exp(((Math.log(0.5) * dt) / this.swingHalfLife))
 }
+
 Swing.prototype.calcTheta = function() {
 	return this.theta + this.omega * dt;
 }
 Swing.prototype.calcOmega = function() {
-	return this.omega + (this.alpha * dt);
+	return this.omega + this.alpha * dt;
 }
 Swing.prototype.calcAlpha = function() {
-	return toDegrees(-g * Math.sin(toRadians(this.theta)) / Math.pow(this.L, 2));
+	return -g * Math.sin(this.theta) / Math.pow(this.L, 2);
 }
 Swing.prototype.calcPE = function() {
 	return this.mass * g * this.h();
@@ -31,21 +38,29 @@ Swing.prototype.calcKE = function() {
 	return 0.5 * this.mass * Math.pow(this.v(), 2);
 }
 Swing.prototype.calcTE = function() {
-	return this.calcPE + this.calcKE;
+	return this.calcPE() + this.calcKE();
 }
+
 Swing.prototype.h = function() {
-	return this.L * (1 - Math.cos(toRadians(this.theta)));
+	return this.L * (1 - Math.cos(this.theta));
 }
 Swing.prototype.v = function() {
 	return this.omega * this.L;
 }
 Swing.prototype.updatePhysics = function() {
+	// TODO ADD DAMPING
+	this.KE = this.KE * this.energyLossFactor;
 	this.alpha = this.calcAlpha();
-	this.omega = this.calcOmega();
+	this.omega = this.getOmegaFromKE() + this.alpha * dt;
 	this.theta = this.calcTheta();
 	this.PE    = this.calcPE();
 	this.KE    = this.calcKE();
-	this.TE    = this.calcTE();
+	this.TE    = this.KE + this.PE;
+}
+Swing.prototype.getOmegaFromKE = function() {
+	var KE = this.KE;
+	var signOmega = (this.omega > 0) ? 1.0 : -1.0;
+	return signOmega * Math.pow((2*KE) / (this.mass * this.L*this.L),0.5);
 }
 
 // TESTING BELOW
